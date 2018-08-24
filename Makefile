@@ -4,7 +4,7 @@
 #   CC : Specify the C compiler to use
 #   CFLAGS : Specify compiler options to use
 
-CFLAGS += -Wall
+CFLAGS += -Wall -g
 
 all: zipexample zipfiles
 

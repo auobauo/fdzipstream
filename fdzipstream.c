@@ -632,9 +632,15 @@ zs_entrybegin ( ZIPstream *zstream, char *name, time_t modtime, int methodID,
   zs_packunit32 (zstream, &packed, zentry->CompressedSize);      /* Compressed entry size */
   zs_packunit32 (zstream, &packed, zentry->UncompressedSize);    /* Uncompressed entry size */
   zs_packunit16 (zstream, &packed, zentry->NameLength);          /* File/entry name length */
-  zs_packunit16 (zstream, &packed, 0);                           /* Extra field length */
+  zs_packunit16 (zstream, &packed, 20);                           /* Extra field length */
   /* File/entry name */
   memcpy (zstream->buffer+packed, zentry->Name, zentry->NameLength); packed += zentry->NameLength;
+
+
+  zs_packunit16 (zstream, &packed, 0x0001);
+  zs_packunit16 (zstream, &packed, 16);
+  zs_packunit64 (zstream, &packed, zentry->UncompressedSize);
+  zs_packunit64 (zstream, &packed, zentry->CompressedSize);
 
   lwritestatus = zs_writedata (zstream, zstream->buffer, packed);
   if ( lwritestatus != packed )
@@ -779,8 +785,12 @@ zs_entryend ( ZIPstream *zstream, ZIPentry *zentry, ssize_t *writestatus)
   packed = 0;
   zs_packunit32 (zstream, &packed, DATADESCRIPTIONSIG);       /* Data Description signature */
   zs_packunit32 (zstream, &packed, zentry->CRC32);            /* CRC-32 value of entry */
-  zs_packunit32 (zstream, &packed, zentry->CompressedSize);   /* Compressed entry size */
-  zs_packunit32 (zstream, &packed, zentry->UncompressedSize); /* Uncompressed entry size */
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+//  zs_packunit64 (zstream, &packed, zentry->CompressedSize);   /* Compressed entry size */
+//  zs_packunit64 (zstream, &packed, zentry->UncompressedSize); /* Uncompressed entry size */
+// >>>>>>>>>>>>><<<<<<<<<<<<<<<
+  zs_packunit64 (zstream, &packed, zentry->UncompressedSize); /* Uncompressed entry size */
+  zs_packunit64 (zstream, &packed, zentry->CompressedSize);   /* Compressed entry size */
 
   lwritestatus = zs_writedata (zstream, zstream->buffer, packed);
   if ( lwritestatus != packed )
@@ -845,27 +855,33 @@ zs_finish ( ZIPstream *zstream, ssize_t *writestatus )
       zs_packunit16 (zstream, &packed, zentry->DOSTime);     /* DOS file modification time */
       zs_packunit16 (zstream, &packed, zentry->DOSDate);     /* DOS file modification date */
       zs_packunit32 (zstream, &packed, zentry->CRC32);       /* CRC-32 value of entry */
-      zs_packunit32 (zstream, &packed, zentry->CompressedSize); /* Compressed entry size */
-      zs_packunit32 (zstream, &packed, zentry->UncompressedSize); /* Uncompressed entry size */
+//      zs_packunit32 (zstream, &packed, zentry->CompressedSize); /* Compressed entry size */
+//      zs_packunit32 (zstream, &packed, zentry->UncompressedSize); /* Uncompressed entry size */
+      zs_packunit32 (zstream, &packed, 0xFFFFFFFF); /* Compressed entry size */
+      zs_packunit32 (zstream, &packed, 0xFFFFFFFF); /* Uncompressed entry size */
       zs_packunit16 (zstream, &packed, zentry->NameLength);  /* File/entry name length */
-      zs_packunit16 (zstream, &packed, ( zip64 ) ? 12 : 0 ); /* Extra field length, switch for ZIP64 */
+//      zs_packunit16 (zstream, &packed, ( zip64 ) ? 20 : 0 ); /* Extra field length, switch for ZIP64 */
+      zs_packunit16 (zstream, &packed, 28 ); /* Extra field length, switch for ZIP64 */
       zs_packunit16 (zstream, &packed, 0);                   /* File/entry comment length */
       zs_packunit16 (zstream, &packed, 0);                   /* Disk number start */
       zs_packunit16 (zstream, &packed, 0);                   /* Internal file attributes */
       zs_packunit32 (zstream, &packed, 0);                   /* External file attributes */
-      zs_packunit32 (zstream, &packed, ( zip64 ) ?
-                     0xFFFFFFFF : zentry->LocalHeaderOffset); /* Relative offset of Local Header */
+//      zs_packunit32 (zstream, &packed, ( zip64 ) ?  0xFFFFFFFF : zentry->LocalHeaderOffset); /* Relative offset of Local Header */
+      zs_packunit32 (zstream, &packed,  0xFFFFFFFF); /* Relative offset of Local Header */
 
       /* File/entry name */
       memcpy (zstream->buffer+packed, zentry->Name, zentry->NameLength);
       packed += zentry->NameLength;
 
-      if ( zip64 )  /* ZIP64 Extra Field */
-        {
+//      if ( zip64 )  /* ZIP64 Extra Field */
+//        {
           zs_packunit16 (zstream, &packed, 1);      /* Extra field ID, 1 = ZIP64 */
-          zs_packunit16 (zstream, &packed, 8);      /* Extra field data length */
+          zs_packunit16 (zstream, &packed, 24);      /* Extra field data length */
+//          zs_packunit64 (zstream, &packed, zentry->LocalHeaderOffset); /* Offset to Local Header */
+          zs_packunit64 (zstream, &packed, zentry->UncompressedSize); /* Offset to Local Header */
+          zs_packunit64 (zstream, &packed, zentry->CompressedSize); /* Offset to Local Header */
           zs_packunit64 (zstream, &packed, zentry->LocalHeaderOffset); /* Offset to Local Header */
-        }
+//        }
 
       lwritestatus = zs_writedata (zstream, zstream->buffer, packed);
       if ( lwritestatus != packed )
